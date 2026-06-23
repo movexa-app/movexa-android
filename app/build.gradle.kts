@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.splashscreen)
+    implementation(libs.accompanist.permissions)
 
     // ── Compose ───────────────────────────────────────────────────────────
     implementation(platform(libs.androidx.compose.bom))
@@ -95,8 +96,7 @@ dependencies {
     implementation(libs.vico.core)
 
     // ── Maps ──────────────────────────────────────────────────────────────
-    implementation(libs.maps.compose)
-    implementation(libs.play.services.maps)
+    implementation(libs.osmdroid)
 
     // ── Location (GPS) ────────────────────────────────────────────────────
     implementation(libs.play.services.location)

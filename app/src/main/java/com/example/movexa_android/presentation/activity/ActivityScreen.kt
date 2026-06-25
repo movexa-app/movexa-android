@@ -2,7 +2,6 @@ package com.example.movexa_android.presentation.activity
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -26,67 +25,61 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.movexa_android.domain.model.ActivityType
 import com.example.movexa_android.domain.model.TrackingState
 
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ActivityScreen(
     viewModel: ActivityViewModel = hiltViewModel()
 ) {
     val session by viewModel.session.collectAsState()
 
-    Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    val sheetState = rememberBottomSheetScaffoldState(
+        bottomSheetState = rememberStandardBottomSheetState(
+            initialValue = SheetValue.PartiallyExpanded,
+            skipHiddenState = true
+        )
+    )
 
-        // ── Map ────────────────────────────────────────────────────────────
-        Box(Modifier.fillMaxWidth().weight(1f)) {
-            ActivityMap(
-                routePoints = session.routePoints,
-                isTracking = session.state == TrackingState.ACTIVE
-            )
-
-            // Floating timer overlay
-            if (session.state != TrackingState.IDLE) {
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 16.dp),
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-                    shadowElevation = 4.dp
-                ) {
-                    Text(
-                        text = session.elapsedFormatted,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        }
-
-        // ── Bottom Sheet Panel ─────────────────────────────────────────────
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            color = MaterialTheme.colorScheme.surface,
-            shadowElevation = 8.dp
-        ) {
-            Column(Modifier.padding(24.dp)) {
-
-                // Drag handle
+    BottomSheetScaffold(
+        scaffoldState = sheetState,
+        sheetPeekHeight = 240.dp,
+        sheetShape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        sheetContainerColor = MaterialTheme.colorScheme.surface,
+        sheetShadowElevation = 12.dp,
+        sheetDragHandle = {
+            // Very large touch target for the handle
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(40.dp),
+                contentAlignment = Alignment.Center
+            ) {
                 Box(
-                    Modifier.width(40.dp).height(4.dp)
+                    Modifier
+                        .width(48.dp)
+                        .height(5.dp)
                         .clip(CircleShape)
                         .background(MaterialTheme.colorScheme.outlineVariant)
-                        .align(Alignment.CenterHorizontally)
                 )
-
-                Spacer(Modifier.height(16.dp))
-
+            }
+        },
+        sheetContent = {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 500.dp) // Ensure the sheet is tall enough to be draggable upwards
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 40.dp)
+            ) {
                 // Activity type chips — only when idle
                 AnimatedVisibility(visible = session.state == TrackingState.IDLE) {
                     Column {
-                        Text("Select Activity",
+                        Text(
+                            "Select Activity",
                             style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold)
+                            fontWeight = FontWeight.Bold
+                        )
                         Spacer(Modifier.height(12.dp))
                         ActivityTypeRow(
                             selected = session.type,
@@ -155,26 +148,57 @@ fun ActivityScreen(
                         ) { viewModel.resetActivity() }
                     }
                 }
+                
+                // Extra space to allow dragging the sheet much higher over the map
+                Spacer(Modifier.height(300.dp))
+            }
+        }
+    ) { innerPadding ->
+        // ── Map fills entire background ────────────────────────────────────
+        Box(
+            Modifier.fillMaxSize()
+        ) {
+            ActivityMap(
+                routePoints = session.routePoints
+            )
 
-                Spacer(Modifier.height(16.dp))
+            // Floating timer overlay
+            if (session.state != TrackingState.IDLE) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = innerPadding.calculateTopPadding() + 16.dp),
+                    shape = RoundedCornerShape(50),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                    shadowElevation = 4.dp
+                ) {
+                    Text(
+                        text = session.elapsedFormatted,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
 }
 
 // ── Map ──────────────────────────────────────────────────────────────────────
-
 @Composable
-private fun ActivityMap(routePoints: List<android.location.Location>, isTracking: Boolean) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-
+private fun ActivityMap(
+    routePoints: List<android.location.Location>
+) {
     AndroidView(
-        factory = {
+        factory = { ctx ->
             org.osmdroid.config.Configuration.getInstance()
-                .load(context, context.getSharedPreferences("osmdroid", 0))
+                .load(ctx, ctx.getSharedPreferences("osmdroid", 0))
 
-            org.osmdroid.views.MapView(context).apply {
-                setTileSource(org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+            TouchAwareMapView(ctx).apply {
+                setTileSource(
+                    org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK
+                )
                 setMultiTouchControls(true)
                 controller.setZoom(17.0)
                 controller.setCenter(
@@ -182,14 +206,17 @@ private fun ActivityMap(routePoints: List<android.location.Location>, isTracking
                 )
             }
         },
-        update = { mapView ->
+        update = { map ->
             if (routePoints.isNotEmpty()) {
                 val last = routePoints.last()
-                val geoPoint = org.osmdroid.util.GeoPoint(last.latitude, last.longitude)
-                mapView.controller.animateTo(geoPoint)
+                val newPoint = org.osmdroid.util.GeoPoint(last.latitude, last.longitude)
+                
+                // Only animate if the position has actually changed to avoid interrupting gestures
+                if (map.mapCenter.latitude != newPoint.latitude || map.mapCenter.longitude != newPoint.longitude) {
+                    map.controller.animateTo(newPoint)
+                }
 
-                // Draw route
-                mapView.overlays.clear()
+                map.overlays.clear()
                 if (routePoints.size >= 2) {
                     val polyline = org.osmdroid.views.overlay.Polyline().apply {
                         setPoints(routePoints.map {
@@ -198,15 +225,14 @@ private fun ActivityMap(routePoints: List<android.location.Location>, isTracking
                         outlinePaint.color = android.graphics.Color.parseColor("#2979FF")
                         outlinePaint.strokeWidth = 14f
                     }
-                    mapView.overlays.add(polyline)
-                    mapView.invalidate()
+                    map.overlays.add(polyline)
+                    map.invalidate()
                 }
             }
         },
         modifier = Modifier.fillMaxSize()
     )
 }
-
 // ── Activity Type Row ─────────────────────────────────────────────────────────
 
 @Composable
@@ -246,10 +272,7 @@ private fun ActivityTypeRow(selected: ActivityType, onSelect: (ActivityType) -> 
 
 @Composable
 private fun LiveStatsRow(session: com.example.movexa_android.domain.model.ActivitySession) {
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
-    ) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
         StatItem("Distance", "${"%.2f".format(session.distanceKm)}", "km")
         StatDivider()
         StatItem("Pace", session.paceFormatted, "/km")
@@ -261,25 +284,19 @@ private fun LiveStatsRow(session: com.example.movexa_android.domain.model.Activi
 @Composable
 private fun StatItem(label: String, value: String, unit: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(label,
-            style = MaterialTheme.typography.labelSmall,
+        Text(label, style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text(value,
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.onSurface)
-        Text(unit,
-            style = MaterialTheme.typography.labelSmall,
+        Text(value, style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.ExtraBold)
+        Text(unit, style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
 @Composable
 private fun StatDivider() {
-    Box(
-        Modifier.height(48.dp).width(1.dp)
-            .background(MaterialTheme.colorScheme.outlineVariant)
-    )
+    Box(Modifier.height(48.dp).width(1.dp)
+        .background(MaterialTheme.colorScheme.outlineVariant))
 }
 
 // ── Buttons ───────────────────────────────────────────────────────────────────
@@ -289,8 +306,7 @@ private fun PrimaryButton(label: String, emoji: String, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth().height(56.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+        shape = RoundedCornerShape(16.dp)
     ) {
         Text("$emoji  $label", fontWeight = FontWeight.Bold, fontSize = 16.sp)
     }
@@ -335,15 +351,12 @@ private fun FinishedSummary(
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center)
         Spacer(Modifier.height(16.dp))
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            StatItem("Distance", distance.replace(" km",""), "km")
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+            StatItem("Distance", distance.replace(" km", ""), "km")
             StatDivider()
             StatItem("Time", time, "elapsed")
             StatDivider()
-            StatItem("Calories", calories.replace(" kcal",""), "kcal")
+            StatItem("Calories", calories.replace(" kcal", ""), "kcal")
         }
         Spacer(Modifier.height(20.dp))
         OutlinedButton(

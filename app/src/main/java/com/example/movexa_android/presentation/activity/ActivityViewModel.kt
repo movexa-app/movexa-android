@@ -9,10 +9,13 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 import javax.inject.Inject
+import com.example.movexa_android.data.local.entity.WorkoutEntity
+import com.example.movexa_android.data.repository.WorkoutRepository
 
 @HiltViewModel
 class ActivityViewModel @Inject constructor(
-    private val locationRepo: LocationRepository
+    private val locationRepo: LocationRepository,
+    private val workoutRepo: WorkoutRepository
 ) : ViewModel() {
 
     private val _session = MutableStateFlow(ActivitySession())
@@ -49,7 +52,20 @@ class ActivityViewModel @Inject constructor(
     fun stopActivity() {
         timerJob?.cancel()
         locationJob?.cancel()
+        val current = _session.value
         _session.update { it.copy(state = TrackingState.FINISHED) }
+
+        viewModelScope.launch {
+            workoutRepo.saveWorkout(
+                WorkoutEntity(
+                    type = current.type,
+                    distanceMeters = current.distanceMeters,
+                    durationSeconds = current.elapsedSeconds,
+                    calories = current.calories,
+                    avgPaceSecPerKm = current.currentPaceSecPerKm
+                )
+            )
+        }
     }
 
     fun resetActivity() {

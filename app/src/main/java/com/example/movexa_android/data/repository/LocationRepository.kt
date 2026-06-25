@@ -20,9 +20,10 @@ class LocationRepository @Inject constructor(
     private val fusedClient = LocationServices.getFusedLocationProviderClient(context)
 
     @SuppressLint("MissingPermission")
-    fun locationUpdates(intervalMs: Long = 2000L): Flow<Location> = callbackFlow {
+    fun locationUpdates(intervalMs: Long = 1000L): Flow<Location> = callbackFlow {
         val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, intervalMs)
-            .setMinUpdateIntervalMillis(1000L)
+            .setMinUpdateIntervalMillis(500L)
+            .setWaitForAccurateLocation(true) // Wait for a more accurate location
             .build()
 
         val callback = object : LocationCallback() {

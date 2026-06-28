@@ -22,9 +22,16 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(
+    onLogout: () -> Unit,
+    viewModel: ProfileViewModel = hiltViewModel()
+) {
+    val user by viewModel.currentUser.collectAsState()
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
     ) { innerPadding ->
@@ -34,7 +41,12 @@ fun ProfileScreen() {
                 .padding(innerPadding),
             contentPadding = PaddingValues(bottom = 32.dp)
         ) {
-            item { ProfileHeader("Alex Johnson", "alex.j@example.com") }
+            item { 
+                ProfileHeader(
+                    name = user?.name ?: "Guest", 
+                    email = user?.email ?: ""
+                ) 
+            }
             
             item {
                 SectionTitle("My Health")
@@ -60,7 +72,9 @@ fun ProfileScreen() {
             
             item {
                 Spacer(Modifier.height(24.dp))
-                LogoutButton()
+                LogoutButton(onLogout = {
+                    viewModel.logout(onLogout)
+                })
             }
         }
     }
@@ -205,9 +219,9 @@ private fun SettingsItem(icon: ImageVector, title: String, subtitle: String) {
 }
 
 @Composable
-private fun LogoutButton() {
+private fun LogoutButton(onLogout: () -> Unit) {
     TextButton(
-        onClick = { },
+        onClick = onLogout,
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 24.dp)

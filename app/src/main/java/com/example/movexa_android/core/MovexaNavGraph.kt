@@ -1,31 +1,128 @@
 package com.example.movexa_android.core
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.Scaffold
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import com.example.movexa_android.presentation.home.HomeScreen
+import androidx.navigation.compose.rememberNavController
 import com.example.movexa_android.presentation.activity.ActivityScreen
+import com.example.movexa_android.presentation.auth.login.LoginScreen
+import com.example.movexa_android.presentation.auth.onboarding.OnboardingScreen
+import com.example.movexa_android.presentation.auth.signup.SignUpScreen
+import com.example.movexa_android.presentation.auth.splash.SplashScreen
+import com.example.movexa_android.presentation.auth.splash.SplashViewModel
 import com.example.movexa_android.presentation.history.HistoryScreen
+import com.example.movexa_android.presentation.home.HomeScreen
 import com.example.movexa_android.presentation.profile.ProfileScreen
 
+// ── Auth route constants ──────────────────────────────────────────────────────
+private object AuthRoutes {
+    const val SPLASH      = "splash"
+    const val ONBOARDING  = "onboarding"
+    const val LOGIN       = "login"
+    const val SIGN_UP     = "signup"
+    const val MAIN        = "main"
+}
+
+// ── Root nav graph (auth flow → main app) ────────────────────────────────────
 @Composable
 fun MovexaNavGraph(navController: NavHostController) {
     NavHost(
         navController = navController,
-        startDestination = Screen.Home.route
+        startDestination = AuthRoutes.SPLASH
     ) {
-        composable(Screen.Home.route) {
-            HomeScreen()
+
+        composable(AuthRoutes.SPLASH) {
+            SplashScreen(
+                onFinished = { authState ->
+                    val destination = when (authState) {
+                        is SplashViewModel.AuthState.Authenticated -> AuthRoutes.MAIN
+                        is SplashViewModel.AuthState.NotAuthenticated -> AuthRoutes.LOGIN
+                        is SplashViewModel.AuthState.FirstTime -> AuthRoutes.ONBOARDING
+                    }
+                    navController.navigate(destination) {
+                        popUpTo(AuthRoutes.SPLASH) { inclusive = true }
+                    }
+                }
+            )
         }
-        composable(Screen.Activity.route) {
-            ActivityScreen()
+
+        composable(AuthRoutes.ONBOARDING) {
+            OnboardingScreen(
+                onFinished = {
+                    navController.navigate(AuthRoutes.LOGIN) {
+                        popUpTo(AuthRoutes.ONBOARDING) { inclusive = true }
+                    }
+                }
+            )
         }
-        composable(Screen.History.route) {
-            HistoryScreen()
+
+        composable(AuthRoutes.LOGIN) {
+            LoginScreen(
+                onLoginSuccess = {
+                    navController.navigate(AuthRoutes.MAIN) {
+                        popUpTo(AuthRoutes.LOGIN) { inclusive = true }
+                    }
+                },
+                onNavigateToSignUp = {
+                    navController.navigate(AuthRoutes.SIGN_UP)
+                }
+            )
         }
-        composable(Screen.Profile.route) {
-            ProfileScreen()
+
+        composable(AuthRoutes.SIGN_UP) {
+            SignUpScreen(
+                onSignUpSuccess = {
+                    navController.navigate(AuthRoutes.MAIN) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                },
+                onNavigateToLogin = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(AuthRoutes.MAIN) {
+            MainScreen(onLogout = {
+                navController.navigate(AuthRoutes.LOGIN) {
+                    popUpTo(AuthRoutes.MAIN) { inclusive = true }
+                }
+            })
+        }
+    }
+}
+
+// ── Main app with bottom nav (your existing screens) ─────────────────────────
+@Composable
+private fun MainScreen(onLogout: () -> Unit) {
+    val innerNavController = rememberNavController()
+
+    Scaffold(
+        bottomBar = {
+            MovexaBottomNav(navController = innerNavController)
+        }
+    ) { innerPadding ->
+        NavHost(
+            navController = innerNavController,
+            startDestination = Screen.Home.route,
+            modifier = Modifier.padding(innerPadding)
+        ) {
+            composable(Screen.Home.route) {
+                HomeScreen()
+            }
+            composable(Screen.Activity.route) {
+                ActivityScreen()
+            }
+            composable(Screen.History.route) {
+                HistoryScreen()
+            }
+            composable(Screen.Profile.route) {
+                ProfileScreen(onLogout = onLogout)
+            }
         }
     }
 }

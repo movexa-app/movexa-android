@@ -24,5 +24,6 @@ object DatabaseModule {
         ).build()
 
     @Provides
+    @Singleton
     fun provideWorkoutDao(db: MovexaDatabase): WorkoutDao = db.workoutDao()
 }

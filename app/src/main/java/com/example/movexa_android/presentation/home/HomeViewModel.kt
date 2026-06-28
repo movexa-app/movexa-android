@@ -1,36 +1,49 @@
 package com.example.movexa_android.presentation.home
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.movexa_android.domain.model.*
+import com.example.movexa_android.domain.repository.HealthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import javax.inject.Inject
 
 @HiltViewModel
-class HomeViewModel @Inject constructor() : ViewModel() {
+class HomeViewModel @Inject constructor(
+    private val healthRepository: HealthRepository
+) : ViewModel() {
 
-    private val _stats = MutableStateFlow(
-        TodayStats(steps = 6240, stepsGoal = 10000, caloriesBurned = 320, distanceKm = 4.2f, activeMinutes = 45)
-    )
-    val stats = _stats.asStateFlow()
-
-    private val _weekly = MutableStateFlow(
-        listOf(
-            DayActivity("M", 5.4f), DayActivity("T", 0f),
-            DayActivity("W", 8.1f), DayActivity("T", 3.2f),
-            DayActivity("F", 6.7f), DayActivity("S", 0f),
-            DayActivity("S", 4.2f, isToday = true)
+    val stats: StateFlow<TodayStats> = healthRepository.getTodayStats()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = TodayStats(0, 10000, 0, 0f, 0)
         )
-    )
-    val weekly = _weekly.asStateFlow()
 
-    private val _recent = MutableStateFlow(
+    val hasPermissions: StateFlow<Boolean> = healthRepository.hasAllPermissions()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = true
+        )
+
+    val weekly: StateFlow<List<DayActivity>> = healthRepository.getWeeklyActivity()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = emptyList()
+        )
+
+    // Recent activities can still be mock or fetched from WorkoutRepository
+    val recent = MutableStateFlow(
         listOf(
             ActivitySummary(1L, ActivityType.RUN, 5.4f, 32, "5:55 /km", "Today"),
             ActivitySummary(2L, ActivityType.CYCLE, 18.2f, 54, "18 km/h", "Yesterday"),
             ActivitySummary(3L, ActivityType.WALK, 2.1f, 28, "13:20 /km", "Mon")
         )
     )
-    val recent = _recent.asStateFlow()
 }

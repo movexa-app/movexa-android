@@ -1,5 +1,6 @@
 package com.example.movexa_android.presentation.home
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -23,7 +24,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.health.connect.client.PermissionController
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.example.movexa_android.data.health.HealthConnectManager
 import com.example.movexa_android.domain.model.ActivitySummary
 import com.example.movexa_android.domain.model.DayActivity
 import com.example.movexa_android.domain.model.TodayStats
@@ -37,6 +40,13 @@ fun HomeScreen(
     val stats by viewModel.stats.collectAsState()
     val weekly by viewModel.weekly.collectAsState()
     val recent by viewModel.recent.collectAsState()
+    val hasPermissions by viewModel.hasPermissions.collectAsState()
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = PermissionController.createRequestPermissionResultContract()
+    ) { granted: Set<String> ->
+        // Handle result if needed
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -54,6 +64,20 @@ fun HomeScreen(
             contentPadding = PaddingValues(bottom = 88.dp)
         ) {
             item { HomeHeader("Alex") }
+            if (!hasPermissions) {
+                item {
+                    PermissionCard {
+                        permissionLauncher.launch(
+                            setOf(
+                                androidx.health.connect.client.permission.HealthPermission.getReadPermission(androidx.health.connect.client.records.StepsRecord::class),
+                                androidx.health.connect.client.permission.HealthPermission.getReadPermission(androidx.health.connect.client.records.DistanceRecord::class),
+                                androidx.health.connect.client.permission.HealthPermission.getReadPermission(androidx.health.connect.client.records.TotalCaloriesBurnedRecord::class),
+                                androidx.health.connect.client.permission.HealthPermission.getReadPermission(androidx.health.connect.client.records.ExerciseSessionRecord::class)
+                            )
+                        )
+                    }
+                }
+            }
             item { TodayGoalCard(stats) }
             item { QuickStatsRow(stats) }
             item { WeeklyChartCard(weekly) }
@@ -72,6 +96,31 @@ fun HomeScreen(
             items(items = recent) { activity: ActivitySummary ->
                 ActivityRow(activity)
                 Spacer(Modifier.height(8.dp))
+            }
+        }
+    }
+}
+
+// ── Permission Card ──────────────────────────────────────────────────────────
+
+@Composable
+private fun PermissionCard(onRequestPermission: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
+    ) {
+        Column(Modifier.padding(20.dp)) {
+            Text("Health Connect Access", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(4.dp))
+            Text("Movexa needs access to your health data to track your progress automatically.",
+                style = MaterialTheme.typography.bodySmall)
+            Spacer(Modifier.height(12.dp))
+            Button(
+                onClick = onRequestPermission,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text("Grant Permissions", color = Color.White)
             }
         }
     }
@@ -106,7 +155,7 @@ private fun HomeHeader(name: String) {
                     .background(MaterialTheme.colorScheme.primary),
                 contentAlignment = Alignment.Center
             ) {
-                Text(name.first().toString(),
+                Text(name.firstOrNull()?.toString() ?: "",
                     color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         }
@@ -236,7 +285,7 @@ private fun WeeklyChartCard(weeklyData: List<DayActivity>) {
 private fun WeeklyBars(data: List<DayActivity>) {
     val primary = MaterialTheme.colorScheme.primary
     val inactive = MaterialTheme.colorScheme.surfaceVariant
-    val maxKm = data.maxOf { it.distanceKm }.takeIf { it > 0f } ?: 1f
+    val maxKm = data.maxOfOrNull { it.distanceKm }?.takeIf { it > 0f } ?: 1f
 
     Row(Modifier.fillMaxWidth().height(100.dp),
         horizontalArrangement = Arrangement.SpaceEvenly,

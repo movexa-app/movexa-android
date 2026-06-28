@@ -19,6 +19,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -239,47 +243,76 @@ fun ActivityScreen(
                 }
             )
 
-            // Search Bar Overlay (Google Maps Style)
-            Surface(
+            // ── Top UI Layer (Search & Timer) ──────────────────────────────────
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
                     .padding(top = innerPadding.calculateTopPadding())
                     .align(Alignment.TopCenter),
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 6.dp
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Row(
+                // Search Bar Overlay (Google Maps Style)
+                Surface(
                     modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 6.dp
                 ) {
-                    Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.width(12.dp))
-                    BasicTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        decorationBox = { innerTextField ->
-                            Box {
-                                if (searchQuery.isEmpty()) {
-                                    Text(
-                                        "Search destination...",
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                        style = MaterialTheme.typography.bodyLarge
-                                    )
+                    Row(
+                        modifier = Modifier
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Search, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.width(12.dp))
+                        BasicTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            decorationBox = { innerTextField ->
+                                Box {
+                                    if (searchQuery.isEmpty()) {
+                                        Text(
+                                            "Search destination...",
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
+                                    }
+                                    innerTextField()
                                 }
-                                innerTextField()
                             }
+                        )
+                        IconButton(onClick = { 
+                            // Force follow mode to recenter
+                            if (!session.isFollowMode) viewModel.toggleFollowMode()
+                        }) {
+                            Icon(Icons.Default.MyLocation, contentDescription = "Current Location", tint = MaterialTheme.colorScheme.primary)
                         }
-                    )
-                    IconButton(onClick = { 
-                        // Force follow mode to recenter
-                        if (!session.isFollowMode) viewModel.toggleFollowMode()
-                    }) {
-                        Icon(Icons.Default.MyLocation, contentDescription = "Current Location", tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+
+                // Floating timer overlay - appears below search bar when active
+                AnimatedVisibility(
+                    visible = session.state != TrackingState.IDLE,
+                    enter = fadeIn() + expandVertically(),
+                    exit = fadeOut() + shrinkVertically()
+                ) {
+                    Surface(
+                        modifier = Modifier.padding(top = 4.dp),
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
+                        shadowElevation = 4.dp
+                    ) {
+                        Text(
+                            text = session.elapsedFormatted,
+                            modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             }
@@ -324,25 +357,7 @@ fun ActivityScreen(
                 }
             }
 
-            // Floating timer overlay
-            if (session.state != TrackingState.IDLE) {
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = innerPadding.calculateTopPadding() + 16.dp),
-                    shape = RoundedCornerShape(50),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-                    shadowElevation = 4.dp
-                ) {
-                    Text(
-                        text = session.elapsedFormatted,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
+
         }
     }
 }

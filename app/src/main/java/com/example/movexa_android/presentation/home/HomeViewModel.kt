@@ -3,6 +3,7 @@ package com.example.movexa_android.presentation.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.movexa_android.domain.model.*
+import com.example.movexa_android.domain.repository.AuthRepository
 import com.example.movexa_android.domain.repository.HealthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,8 +15,17 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val healthRepository: HealthRepository
+    private val healthRepository: HealthRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
+
+    val userName: StateFlow<String> = authRepository.getSession()
+        .map { it?.name ?: "User" }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = "User"
+        )
 
     val stats: StateFlow<TodayStats> = healthRepository.getTodayStats()
         .stateIn(

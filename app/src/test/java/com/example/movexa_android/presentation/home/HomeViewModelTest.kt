@@ -3,12 +3,15 @@ package com.example.movexa_android.presentation.home
 import app.cash.turbine.test
 import com.example.movexa_android.domain.model.DayActivity
 import com.example.movexa_android.domain.model.TodayStats
+import com.example.movexa_android.domain.model.User
+import com.example.movexa_android.domain.repository.AuthRepository
 import com.example.movexa_android.domain.repository.HealthRepository
 import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -22,6 +25,7 @@ import org.junit.Test
 class HomeViewModelTest {
 
     private val healthRepository: HealthRepository = mockk()
+    private val authRepository: AuthRepository = mockk()
     private lateinit var viewModel: HomeViewModel
     private val testDispatcher = UnconfinedTestDispatcher()
 
@@ -36,8 +40,9 @@ class HomeViewModelTest {
         every { healthRepository.getTodayStats() } returns statsFlow
         every { healthRepository.getWeeklyActivity() } returns weeklyFlow
         every { healthRepository.hasAllPermissions() } returns permissionsFlow
+        every { authRepository.getSession() } returns flowOf(User("1", "test@test.com", "John Doe", "token"))
         
-        viewModel = HomeViewModel(healthRepository)
+        viewModel = HomeViewModel(healthRepository, authRepository)
     }
 
     @After
@@ -69,6 +74,13 @@ class HomeViewModelTest {
             assertEquals(1, emission.size)
             assertEquals("M", emission[0].day)
             assertEquals(5f, emission[0].distanceKm)
+        }
+    }
+
+    @Test
+    fun userName_state_flow_emits_correct_name() = runTest {
+        viewModel.userName.test {
+            assertEquals("John Doe", awaitItem())
         }
     }
 }
